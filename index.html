@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Papercut netcore nightly builds</title>
+
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-116544183-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'UA-116544183-1');
+    </script>
     <script src="https://code.jquery.com/jquery-2.2.4.min.js" integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -26,56 +35,69 @@
 
     <script>
         function fetchWindowsArchieves(){
-            let url = 'https://ci.appveyor.com/api/projects/Jaben/papercut/history?recordsNumber=10&branch=feature/netcore';
-            let api = $.getJSON(url);
-
-            api.then((buildData) =>{
-                let fetchAllBuilds = buildData.builds
+            var start = Number(new Date());
+            var url = 'https://ci.appveyor.com/api/projects/Jaben/papercut/history?recordsNumber=10&branch=feature/netcore';
+            
+            $.getJSON(url)
+             .then((buildData) =>{
+                var fetchAllBuilds = buildData.builds
                     .filter(b => b.status === "success")
                     .map(b => b.version)
                     .map(version => $.getJSON(`https://ci.appveyor.com/api/projects/Jaben/papercut/build/${version}`));
                 
                 Promise.all(fetchAllBuilds).then(allBuilds => {
-                    let allJobIds = allBuilds
-                            .map(buildEntry => buildEntry.build)
-                            .filter(b => b.jobs[0].artifactsCount > 0)
-                            .map(b =>  b.jobs[0].jobId);
-                    
-                    let fetchAllArtifacts = allJobIds.map(jobId => $.getJSON(`https://ci.appveyor.com/api/buildjobs/${jobId}/artifacts`));                
-                    Promise.all(fetchAllArtifacts).then(artifactGroups => {
-                        artifactGroups.forEach((artifactGroup, index) => {
-                            artifactGroup.forEach(artifact => {
-                                artifact.url = `https://ci.appveyor.com/api/buildjobs/${allJobIds[index]}/artifacts/${artifact.fileName}`;
-                            });                        
-                        });
+                        var allJobIds = allBuilds
+                                .map(buildEntry => buildEntry.build)
+                                .filter(b => b.jobs[0].artifactsCount > 0)
+                                .map(b =>  b.jobs[0].jobId);
+                        
+                        var fetchAllArtifacts = allJobIds.map(jobId => $.getJSON(`https://ci.appveyor.com/api/buildjobs/${jobId}/artifacts`));                
+                        Promise.all(fetchAllArtifacts).then(artifactGroups => {
+                            gtag('event', 'ArtifactsLoaded', {
+                                'event_category': 'DataLoad',
+                                'event_label': 'Windows',
+                                'elapsed': Number(new Date()) - start
+                            });
 
-                        populateArtifacts('windows-builds', artifactGroups);
-                    });
-            });
+                            artifactGroups.forEach((artifactGroup, index) => {
+                                artifactGroup.forEach(artifact => {
+                                    artifact.url = `https://ci.appveyor.com/api/buildjobs/${allJobIds[index]}/artifacts/${artifact.fileName}`;
+                                });                        
+                            });
+
+                            populateArtifacts('windows-builds', artifactGroups);
+                        });
+                });
             });
         }
 
 
         function populateArtifacts(id, artifactGroups){
-                let buildList = $('#' + id).empty();
+                var buildList = $('#' + id).empty();
                 if(artifactGroups.length < 1){
-                    let emptyNotice = 'No recent archieves found.';
+                    var emptyNotice = 'No recent archieves found.';
                     buildList.append($('<li>').append(emptyNotice));
                     return;
                 }
 
                 artifactGroups.forEach(artifactGroup => {
-                    let li = $('<li>');
+                    var li = $('<li>');
                     artifactGroup
                         .sort((a1, a2) => a1.fileName.localeCompare(a2.fileName))
                         .forEach(artifact => {
-                        let a = $('<a>')
+                        var a = $('<a>')
                                     .text(artifact.fileName)
                                     .attr({
                                         href: artifact.url,
                                         title: 'Download ' + artifact.fileName,
                                         target: '_blank'
                                     });
+                        a.click(function(){
+                            gtag('event', 'Download', {
+                                'event_category': $(this).text(),
+                                'event_label': $(this).parents('ul').attr('id')
+                            });
+                        });
 
                         li.append(a);
                         li.append('&nbsp;&nbsp;');
@@ -244,17 +266,25 @@
 
 
         function fetchLinuxArchieves(){
+            var start = Number(new Date());
+
             $.get('https://papercutartifacts.blob.core.windows.net/prereleases/?comp=list&prefix=linux&maxresults=10&include=metadata&&api-version=2017-07-29')
             .then((doc, status, xhr) => {
+                gtag('event', 'ArtifactsLoaded', {
+                    'event_category': 'DataLoad',
+                    'event_label': 'Linux',
+                    'elapsed': Number(new Date()) - start
+                });
+
                 if(status !== 'success'){ return; }
-                let json = xml2json(xhr.responseXML, '');
-                let blobs = $.parseJSON(json).EnumerationResults.Blobs;
+                var json = xml2json(xhr.responseXML, '');
+                var blobs = $.parseJSON(json).EnumerationResults.Blobs;
                 blobs = blobs ? blobs.Blob : [];
 
-                let artifacts = blobs.map(rawBlob => {
+                var artifacts = blobs.map(rawBlob => {
                     // name looks like: linux/5.1.12-netcore/PapercutDesktop.linux.5.1.12-netcore.zip 
-                    const firstSlash = rawBlob.Name.indexOf('/');
-                    const lastSlash = rawBlob.Name.lastIndexOf('/');
+                    var firstSlash = rawBlob.Name.indexOf('/');
+                    var lastSlash = rawBlob.Name.lastIndexOf('/');
 
                     return {   
                         build: rawBlob.Name.substr(firstSlash + 1, lastSlash - firstSlash - 1),
@@ -268,7 +298,6 @@
                     return allBlobs;
                 }, {});
 
-                console.log(artifacts);
                 populateArtifacts('linux-builds', Object.values(artifacts));
             });
         }
@@ -277,7 +306,6 @@
         fetchLinuxArchieves();
 
     </script>
-
 
 </body>
 </html>
