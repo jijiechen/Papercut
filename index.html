@@ -19,18 +19,22 @@
 <body>
     <h1>Papercut netcore nightly builds</h1>
     <br />
-    <h2>Latest Linux archives</h2>
-    <ul id="linux-builds">
-        <li>Fetching...</li>
-    </ul>
-    <p><a href="https://travis-ci.org/jijiechen/Papercut/builds">Checkout more</a></p>
-    <br />
     <h2>Latest Windows archives</h2>
     <ul id="windows-builds">
         <li>Fetching...</li>
     </ul>
     <p><a href="https://ci.appveyor.com/project/Jaben/papercut/history">Checkout more</a></p>
-
+    <br />
+    <h2>Latest macOS archives</h2>
+    <ul id="osx-builds">
+        <li>Fetching...</li>
+    </ul>
+    <br />
+    <h2>Latest Linux archives</h2>
+    <ul id="linux-builds">
+        <li>Fetching...</li>
+    </ul>
+    <p><a href="https://travis-ci.org/jijiechen/Papercut/builds">Checkout more</a></p>
 
 
     <script>
@@ -265,14 +269,14 @@
 
 
 
-        function fetchLinuxArchieves(){
+        function fetchArchievesFromAzure(osName){
             var start = Number(new Date());
 
-            $.get('https://papercutartifacts.blob.core.windows.net/prereleases/?comp=list&prefix=linux&maxresults=10&include=metadata&&api-version=2017-07-29')
+            $.get(`https://papercutartifacts.blob.core.windows.net/prereleases/?comp=list&prefix=${osName}&maxresults=10&include=metadata&&api-version=2017-07-29`)
             .then((doc, status, xhr) => {
                 gtag('event', 'ArtifactsLoaded', {
                     'event_category': 'DataLoad',
-                    'event_label': 'Linux',
+                    'event_label': osName,
                     'elapsed': Number(new Date()) - start
                 });
 
@@ -298,12 +302,13 @@
                     return allBlobs;
                 }, {});
 
-                populateArtifacts('linux-builds', Object.values(artifacts));
+                populateArtifacts(osName + '-builds', Object.values(artifacts));
             });
         }
 
         fetchWindowsArchieves();
-        fetchLinuxArchieves();
+        fetchArchievesFromAzure('linux');
+        fetchArchievesFromAzure('osx');
 
     </script>
 
