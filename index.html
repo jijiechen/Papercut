@@ -43,29 +43,29 @@
             var url = 'https://ci.appveyor.com/api/projects/Jaben/papercut/history?recordsNumber=10&branch=feature/netcore';
             
             $.getJSON(url)
-             .then((buildData) =>{
+             .then(function(buildData){
                 var fetchAllBuilds = buildData.builds
-                    .filter(b => b.status === "success")
-                    .map(b => b.version)
-                    .map(version => $.getJSON(`https://ci.appveyor.com/api/projects/Jaben/papercut/build/${version}`));
+                    .filter(function(b) {return b.status === "success"})
+                    .map(function(b){return b.version})
+                    .map(function(version){return $.getJSON('https://ci.appveyor.com/api/projects/Jaben/papercut/build/' + version) });
                 
-                Promise.all(fetchAllBuilds).then(allBuilds => {
+                Promise.all(fetchAllBuilds).then(function(allBuilds) {
                         var allJobIds = allBuilds
-                                .map(buildEntry => buildEntry.build)
-                                .filter(b => b.jobs[0].artifactsCount > 0)
-                                .map(b =>  b.jobs[0].jobId);
+                                .map(function(buildEntry){return buildEntry.build })
+                                .filter(function(b){return b.jobs[0].artifactsCount > 0 })
+                                .map(function(b){return b.jobs[0].jobId});
                         
-                        var fetchAllArtifacts = allJobIds.map(jobId => $.getJSON(`https://ci.appveyor.com/api/buildjobs/${jobId}/artifacts`));                
-                        Promise.all(fetchAllArtifacts).then(artifactGroups => {
+                        var fetchAllArtifacts = allJobIds.map(function(jobId){return $.getJSON('https://ci.appveyor.com/api/buildjobs/' + jobId +'/artifacts')});
+                        Promise.all(fetchAllArtifacts).then(function(artifactGroups) {
                             gtag('event', 'ArtifactsLoaded', {
                                 'event_category': 'DataLoad',
                                 'event_label': 'Windows',
                                 'elapsed': Number(new Date()) - start
                             });
 
-                            artifactGroups.forEach((artifactGroup, index) => {
-                                artifactGroup.forEach(artifact => {
-                                    artifact.url = `https://ci.appveyor.com/api/buildjobs/${allJobIds[index]}/artifacts/${artifact.fileName}`;
+                            artifactGroups.forEach(function(artifactGroup, index)  {
+                                artifactGroup.forEach(function(artifact) {
+                                    artifact.url = 'https://ci.appveyor.com/api/buildjobs/' + allJobIds[index] + '/artifacts/' + artifact.fileName;
                                 });                        
                             });
 
@@ -84,11 +84,11 @@
                     return;
                 }
 
-                artifactGroups.forEach(artifactGroup => {
+                artifactGroups.forEach(function(artifactGroup) {
                     var li = $('<li>');
                     artifactGroup
-                        .sort((a1, a2) => a1.fileName.localeCompare(a2.fileName))
-                        .forEach(artifact => {
+                        .sort(function(a1, a2){return a1.fileName.localeCompare(a2.fileName)})
+                        .forEach(function(artifact) {
                         var a = $('<a>')
                                     .text(artifact.fileName)
                                     .attr({
@@ -272,8 +272,8 @@
         function fetchArchievesFromAzure(osName){
             var start = Number(new Date());
 
-            $.get(`https://papercutartifacts.blob.core.windows.net/prereleases/?comp=list&prefix=${osName}&maxresults=10&include=metadata&&api-version=2017-07-29`)
-            .then((doc, status, xhr) => {
+            $.get('https://papercutartifacts.blob.core.windows.net/prereleases/?comp=list&prefix=' + osName + '&maxresults=10&include=metadata&&api-version=2017-07-29')
+            .then(function(doc, status, xhr) {
                 gtag('event', 'ArtifactsLoaded', {
                     'event_category': 'DataLoad',
                     'event_label': osName,
@@ -285,7 +285,7 @@
                 var blobs = $.parseJSON(json).EnumerationResults.Blobs;
                 blobs = blobs ? blobs.Blob : [];
 
-                var artifacts = blobs.map(rawBlob => {
+                var artifacts = blobs.map(function(rawBlob) {
                     // name looks like: linux/5.1.12-netcore/PapercutDesktop.linux.5.1.12-netcore.zip 
                     var firstSlash = rawBlob.Name.indexOf('/');
                     var lastSlash = rawBlob.Name.lastIndexOf('/');
@@ -297,7 +297,7 @@
                         size: rawBlob.Size
                     };
                 })
-                .reduce((allBlobs, item) => {
+                .reduce(function(allBlobs, item) {
                     (allBlobs[item.build] = allBlobs[item.build] || []).push(item);
                     return allBlobs;
                 }, {});
