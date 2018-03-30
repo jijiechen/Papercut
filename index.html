@@ -95,7 +95,7 @@
                                     .text(artifact.fileName)
                                     .attr({
                                         href: artifact.url,
-                                        title: 'Download ' + artifact.fileName,
+                                        title: 'Download ' + artifact.fileName + ' (' + fileSize(artifact.size) + ')',
                                         target: '_blank'
                                     });
                         a.click(function(){
@@ -111,6 +111,19 @@
 
                     buildList.append(li);
                 });
+
+                function fileSize(size){
+                    size = parseInt(size);
+                    
+                    var kb = 1024;
+                    var mb = 1024 * kb;
+
+                    if(size > mb){
+                        return Math.ceil(size / mb) + ' MB';
+                    }else {
+                        return Math.ceil( size / kb ) + ' KB';
+                    }
+                }
             }
 
         /*	This work is licensed under Creative Commons GNU LGPL License.
