@@ -49,20 +49,22 @@
                     .map(function(b){return b.version})
                     .map(function(version){return $.getJSON('https://ci.appveyor.com/api/projects/Jaben/papercut/build/' + version) });
                 
-                Promise.all(fetchAllBuilds).then(function(allBuilds) {
+                $.when.apply(null, fetchAllBuilds).done(function() {
+                        var allBuilds = [].slice.apply(arguments).map(function(respCtx){ return respCtx[0] });
                         var allJobIds = allBuilds
                                 .map(function(buildEntry){return buildEntry.build })
                                 .filter(function(b){return b.jobs[0].artifactsCount > 0 })
                                 .map(function(b){return b.jobs[0].jobId});
                         
                         var fetchAllArtifacts = allJobIds.map(function(jobId){return $.getJSON('https://ci.appveyor.com/api/buildjobs/' + jobId +'/artifacts')});
-                        Promise.all(fetchAllArtifacts).then(function(artifactGroups) {
+                        $.when.apply(null, fetchAllArtifacts).done(function() {
                             gtag('event', 'ArtifactsLoaded', {
                                 'event_category': 'DataLoad',
                                 'event_label': 'Windows',
                                 'elapsed': Number(new Date()) - start
                             });
 
+                            var artifactGroups = [].slice.apply(arguments).map(function(respCtx){ return respCtx[0] });
                             artifactGroups.forEach(function(artifactGroup, index)  {
                                 artifactGroup.forEach(function(artifact) {
                                     artifact.url = 'https://ci.appveyor.com/api/buildjobs/' + allJobIds[index] + '/artifacts/' + artifact.fileName;
@@ -272,7 +274,7 @@
         function fetchArchievesFromAzure(osName){
             var start = Number(new Date());
 
-            $.get('https://papercutartifacts.blob.core.windows.net/prereleases/?comp=list&prefix=' + osName + '&maxresults=10&include=metadata&&api-version=2017-07-29')
+            $.get('https://papercutartifacts.blob.core.windows.net/prereleases/?comp=list&prefix=' + osName + '&maxresults=100&include=metadata&&api-version=2017-07-29')
             .then(function(doc, status, xhr) {
                 gtag('event', 'ArtifactsLoaded', {
                     'event_category': 'DataLoad',
@@ -297,12 +299,27 @@
                         size: rawBlob.Size
                     };
                 })
-                .reduce(function(allBlobs, item) {
-                    (allBlobs[item.build] = allBlobs[item.build] || []).push(item);
-                    return allBlobs;
-                }, {});
+                .sort(function(a1, a2){
+                    function version(a){
+                        return parseInt(a.build.replace(/\./g, ''));
+                    }
 
-                populateArtifacts(osName + '-builds', Object.values(artifacts));
+                    return version(a2) - version(a1);
+                });
+
+                var  allArtifacts = artifacts.slice(0, Math.max(10, artifacts.length))
+                                            .reduce(function(allBlobs, item) {
+                                                (allBlobs[item.build] = allBlobs[item.build] || []).push(item);
+                                                return allBlobs;
+                                            }, {});
+                var artifactItems = [];
+                for(var key in allArtifacts){
+                    if(allArtifacts.hasOwnProperty(key)){
+                        artifactItems.push(allArtifacts[key]);
+                    }
+                }
+
+                populateArtifacts(osName + '-builds', artifactItems);
             });
         }
 
